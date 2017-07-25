@@ -31,6 +31,8 @@ import re
 import urlparse
 import sys
 import os
+import xbmc
+import xbmcvfs
 import xbmcgui
 import common
 from hmf import HostedMediaFile
@@ -54,28 +56,26 @@ def add_plugin_dirs(dirs):
     else:
         PLUGIN_DIRS += dirs
 
+def __load_plugin_dir(dir):
+    sys.path.insert(0, dir)
+    for filename in os.listdir(dir):
+        if not filename.startswith('__') and filename.endswith('.py'):
+            mod_name = filename[:-3]
+            imp = __import__(mod_name, globals(), locals())
+            sys.modules[mod_name] = imp
+            common.logger.log_debug('Loaded %s as %s from %s' % (imp, mod_name, filename))
+
 def load_external_plugins():
     for d in PLUGIN_DIRS:
         common.logger.log_debug('Adding plugin path: %s' % (d))
-        sys.path.insert(0, d)
-        for filename in os.listdir(d):
-            if not filename.startswith('__') and filename.endswith('.py'):
-                mod_name = filename[:-3]
-                imp = __import__(mod_name, globals(), locals())
-                sys.modules[mod_name] = imp
-                common.logger.log_debug('Loaded %s as %s from %s' % (imp, mod_name, filename))
+        __load_plugin_dir(d)
 
 def relevant_resolvers(domain=None, include_universal=None, include_external=False, include_disabled=False, include_xxx=False, order_matters=False):
-    if include_xxx:
-        import xbmc
-        smu_xxx_id = "script.module.urlresolver.xxx"
-        if xbmc.getCondVisibility('System.HasAddon(%s)' % smu_xxx_id):
-            import xbmcaddon
-            smu_xxx_path = xbmcaddon.Addon(smu_xxx_id).getAddonInfo("path")
-            smu_xxx_plugins = os.path.join(smu_xxx_path,'resources/plugins/')
-            add_plugin_dirs(smu_xxx_plugins)
-        
-    if include_external or include_xxx:
+    xxx_plugins_path = 'special://home/addons/script.module.urlresolver.xxx/resources/plugins/'
+    if include_xxx and xbmcvfs.exists(xxx_plugins_path):
+        __load_plugin_dir(xbmc.translatePath(xxx_plugins_path))
+
+    if include_external:
         load_external_plugins()
     
     if isinstance(domain, basestring):
@@ -192,7 +192,7 @@ def choose_source(sources):
         else:
             return False
 
-def scrape_supported(html, regex=None, host_only=False):
+def scrape_supported(html, regex=None, host_only=False, include_xxx=False):
     '''
     returns a list of links scraped from the html that are supported by urlresolver
     
@@ -219,9 +219,9 @@ def scrape_supported(html, regex=None, host_only=False):
                     links.append(stream_url)
                 continue
             else:
-                hmf = HostedMediaFile(host=host, media_id='dummy')  # use dummy media_id to allow host validation
+                hmf = HostedMediaFile(host=host, media_id='dummy', include_xxx=include_xxx)  # use dummy media_id to allow host validation
         else:
-            hmf = HostedMediaFile(url=stream_url)
+            hmf = HostedMediaFile(url=stream_url, include_xxx=include_xxx)
         
         is_valid = hmf.valid_url()
         host_cache[host] = is_valid
