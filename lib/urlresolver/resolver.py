@@ -142,7 +142,7 @@ class UrlResolver(object):
             '<setting id="%s_enabled" ''type="bool" label="%s" default="true"/>' % (cls.__name__, common.i18n('enabled'))
         ]
         if include_login:
-            xml.append('<setting id="%s_login" ''type="bool" label="%s" default="false" visible="false"/>' % (cls.__name__, common.i18n('login')))
+            xml.append('<setting id="%s_login" ''type="bool" label="%s" default="false" visible="false"/>' % (cls.__name__, common.i18n('Login')))
         return xml
 
     @classmethod
